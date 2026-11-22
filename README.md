@@ -1,5 +1,7 @@
 # Padlock
 
+> **Unbreakable comms for two people who can meet once.**
+
 **Provably unbreakable secure messaging** — built on a **real one-time pad**, so it's *provably* unbreakable, not
 just unbroken. Swap a pad **air-gapped**, burn it as you use it, and — with the phone locked — there is no amount
 of compute, now or ever, that reads your messages. Deleted messages are **provably unrecoverable**: once the pad
@@ -18,6 +20,17 @@ burnt as they're used. No cloud, no servers, no accounts, no computational assum
 Serve `index.html` over **https / localhost** (WebCrypto needs a secure context), then: generate a pad →
 compose → *Encrypt & burn* → paste the output into **Receive** → *Decrypt*. Flip a word in the received text to
 watch the MAC reject it.
+
+## Who it's for — and what it isn't
+
+Padlock is for a **pre-arranged pair** who can meet once to swap a pad — not group chat, not messaging strangers
+at scale. That isn't a limitation to hide; it's the whole design. Every other messenger traded away perfect
+secrecy so it could reach strangers. Padlock makes the opposite trade, and owns it.
+
+The pad protects **what** you say — perfectly, forever. It doesn't hide **that** you messaged: ciphertext sent
+over ordinary email or chat still shows two people talked. If the metadata matters as much as the content, pair
+Padlock with an anonymising transport. But within its niche — two people, one handover, unbreakable thereafter —
+nobody else offers this.
 
 ## Licence
 
