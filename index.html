@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0f1420">
+<title>Padlock</title>
+<style>
+  :root{ --bg:#0f1420; --panel:#171e2e; --line:#273349; --ink:#e7ecf5; --dim:#8b97ad; --gold:#d9a441; --green:#39b37a; --red:#e2574c; --blue:#4f7fd1; }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; padding-bottom:40px}
+  header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  header h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.5px}
+  header .lock{font-size:20px}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 16px;font-size:13px;color:var(--dim);border-bottom:1px solid var(--line);background:#121a28}
+  .bar b{color:var(--ink)}
+  .pill{padding:2px 9px;border-radius:99px;border:1px solid var(--line)}
+  main{max-width:720px;margin:0 auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .card h2{margin:0 0 10px;font-size:14px;text-transform:uppercase;letter-spacing:.1em;color:var(--gold)}
+  label{display:block;font-size:13px;color:var(--dim);margin:8px 0 4px}
+  textarea,input,select{width:100%;background:#0d1320;border:1px solid var(--line);border-radius:9px;color:var(--ink);font:inherit;padding:10px}
+  textarea{resize:vertical;min-height:70px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  button{background:var(--blue);color:#fff;border:none;border-radius:9px;padding:10px 16px;font-weight:600;font-size:14px;cursor:pointer}
+  button.gold{background:var(--gold);color:#201a0a}
+  button.ghost{background:transparent;color:var(--blue);box-shadow:inset 0 0 0 1px var(--line)}
+  button:disabled{opacity:.4}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .seg button{background:transparent;color:var(--dim);border-radius:0;padding:7px 14px}
+  .seg button.on{background:var(--blue);color:#fff}
+  .out{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;background:#0d1320;border:1px dashed var(--line);border-radius:9px;padding:10px;min-height:44px;white-space:pre-wrap;word-break:break-word;color:#cfe0ff}
+  .badge{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700}
+  .ok{background:rgba(57,179,122,.15);color:var(--green)}
+  .bad{background:rgba(226,87,76,.15);color:var(--red)}
+  .log{font-size:12px;color:var(--dim);font-family:ui-monospace,monospace;white-space:pre-wrap;max-height:120px;overflow:auto}
+  .hint{font-size:12px;color:var(--dim);margin-top:6px}
+  .meter{height:6px;background:#0d1320;border-radius:4px;overflow:hidden;margin-top:6px}
+  .meter span{display:block;height:100%;background:var(--green)}
+</style>
+</head>
+<body>
+<header><span class="lock">🔐</span><h1>PADLOCK</h1><span class="pill" style="margin-left:auto" id="verdict">prototype</span></header>
+<div class="bar">
+  <span>pad <b id="padid">—</b></span>
+  <span>you are <b id="roleLbl">A</b></span>
+  <span>your budget <b id="budget">—</b></span>
+  <span class="pill" id="lockstate">unlocked</span>
+</div>
+
+<main>
+  <!-- PAD -->
+  <div class="card">
+    <h2>Pad</h2>
+    <div class="row">
+      <select id="padsize" style="width:auto">
+        <option value="2048">2 KB — a few messages</option>
+        <option value="65536" selected>64 KB — hundreds</option>
+        <option value="1048576">1 MB — thousands</option>
+      </select>
+      <button class="gold" onclick="doGen()">Generate new pad</button>
+      <div class="seg"><button id="rA" class="on" onclick="setRole('A')">I'm A (initiator)</button><button id="rB" onclick="setRole('B')">I'm B</button></div>
+    </div>
+    <div class="hint">Real Padlock shares this pad across the table by <b>animated QR</b> (air-gapped, MITM-proof). Prototype uses copy/paste base64 to stand in for the camera hand-off.</div>
+    <label>Export pad (hand to your contact — in person!)</label>
+    <div class="row"><textarea id="padout" readonly placeholder="generate a pad…"></textarea></div>
+    <div class="row"><button class="ghost" onclick="copy('padout')">Copy pad</button></div>
+    <label>Import a pad someone handed you</label>
+    <div class="row"><textarea id="padin" placeholder="paste pad base64…"></textarea></div>
+    <div class="row"><button class="ghost" onclick="doImport()">Load pad</button></div>
+    <label>At-rest vault (optional) — passphrase-lock the stored pad</label>
+    <div class="row"><input id="pass" type="password" placeholder="passphrase" style="width:auto;flex:1"><button class="ghost" onclick="doLock()">Lock / save</button></div>
+    <div class="hint">Prototype: passphrase → PBKDF2 → AES-GCM over the stored pad. Native build binds this to the phone's StrongBox: <code>key = KDF(passphrase ‖ hardware_secret)</code>, so even a broken secure element still needs your passphrase.</div>
+  </div>
+
+  <!-- COMPOSE -->
+  <div class="card">
+    <h2>Compose → encrypt &amp; burn</h2>
+    <textarea id="plain" placeholder="your message…"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button class="gold" onclick="doEncrypt()">Encrypt &amp; burn</button>
+      <div class="seg"><button id="dWord" class="on" onclick="setDisguise('word')">word-salad</button><button id="dB64" onclick="setDisguise('b64')">base64</button></div>
+    </div>
+    <label>Send this (share it over any channel):</label>
+    <div class="out" id="cipherout"></div>
+    <div class="row" style="margin-top:8px"><button class="ghost" onclick="copy('cipherout')">Copy</button><button class="ghost" onclick="shareOut()">Share…</button></div>
+  </div>
+
+  <!-- RECEIVE -->
+  <div class="card">
+    <h2>Receive → verify &amp; decrypt</h2>
+    <textarea id="recvin" placeholder="paste what you received…"></textarea>
+    <div class="row" style="margin-top:8px"><button class="gold" onclick="doDecrypt()">Decrypt</button><span id="macbadge"></span></div>
+    <label>Message:</label>
+    <div class="out" id="plainout"></div>
+  </div>
+
+  <div class="card"><h2>Log</h2><div class="log" id="log"></div></div>
+</main>
+
+<script>
+// ───────────────────────── helpers
+const te = new TextEncoder(), td = new TextDecoder();
+const $ = id => document.getElementById(id);
+function log(m){ const l=$('log'); l.textContent = '• '+m+'\n'+l.textContent; }
+function b64e(u8){ let s=''; for(const b of u8) s+=String.fromCharCode(b); return btoa(s); }
+function b64d(s){ s=s.trim().replace(/\s+/g,''); const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
+function u16(n){ return new Uint8Array([n&255,(n>>8)&255]); }
+function u32(n){ return new Uint8Array([n&255,(n>>8)&255,(n>>16)&255,(n>>24)&255]); }
+function rd16(a,o){ return a[o]|(a[o+1]<<8); }
+function rd32(a,o){ return (a[o]|(a[o+1]<<8)|(a[o+2]<<16)|(a[o+3]<<24))>>>0; }
+function cat(...arrs){ let n=0; for(const a of arrs) n+=a.length; const o=new Uint8Array(n); let p=0; for(const a of arrs){ o.set(a,p); p+=a.length; } return o; }
+function ctEq(a,b){ if(a.length!==b.length) return false; let d=0; for(let i=0;i<a.length;i++) d|=a[i]^b[i]; return d===0; }
+
+// ───────────────────────── Poly1305 one-time MAC (RFC 8439), key = 32 pad bytes, used once
+function leBig(u8){ let n=0n; for(let i=u8.length-1;i>=0;i--) n=(n<<8n)|BigInt(u8[i]); return n; }
+function bigLe(n,len){ const o=new Uint8Array(len); for(let i=0;i<len;i++){ o[i]=Number(n&255n); n>>=8n; } return o; }
+function poly1305(msg,key){
+  let r = leBig(key.slice(0,16)) & 0x0ffffffc0ffffffc0ffffffc0fffffffn;
+  const s = leBig(key.slice(16,32));
+  const p = (1n<<130n)-5n;
+  let acc = 0n;
+  for(let i=0;i<msg.length;i+=16){
+    const blk = msg.slice(i,i+16);
+    const n = leBig(blk) + (1n << BigInt(blk.length*8));
+    acc = ((acc+n)*r) % p;
+  }
+  acc = (acc + s) & ((1n<<128n)-1n);
+  return bigLe(acc,16);
+}
+
+// ───────────────────────── word-salad codec (256 pronounceable tokens, 1 byte each, reversible)
+const ONS=['b','d','f','g','k','l','m','n','p','r','s','t','v','w','z','h'];
+const RIM=['a','e','i','o','u','ay','ee','oo','ar','or','en','on','al','il','om','un'];
+const TOK=[]; const REV={};
+for(let h=0;h<16;h++) for(let l=0;l<16;l++){ const t=ONS[h]+RIM[l]; TOK[(h<<4)|l]=t; REV[t]=(h<<4)|l; }
+function wordEnc(u8){ const w=[]; for(const b of u8) w.push(TOK[b]); return w.join(' '); }
+function wordDec(s){ const w=s.trim().toLowerCase().split(/\s+/).filter(Boolean); const u=new Uint8Array(w.length); for(let i=0;i<w.length;i++){ if(!(w[i] in REV)) throw new Error('bad token: '+w[i]); u[i]=REV[w[i]]; } return u; }
+
+// ───────────────────────── pad model + ledger
+// pad split: A-half = [0, N/2), B-half = [N/2, N). Each message burns len enc bytes + 32 mac bytes
+// sequentially from the sender's half. Offset travels (clear) in the header, so channel is irrelevant.
+let PAD=null, PADID='—', ROLE='A', DISG='word';
+const MACLEN=32;
+function halfBase(role){ return role==='A' ? 0 : (PAD.length>>1); }
+function halfEnd(role){ return role==='A' ? (PAD.length>>1) : PAD.length; }
+function ledKey(){ return 'padlock_'+PADID; }
+function ledger(){ try{ return JSON.parse(localStorage.getItem(ledKey())||'{}'); }catch(e){ return {}; } }
+function saveLedger(l){ try{ localStorage.setItem(ledKey(), JSON.stringify(l)); }catch(e){} }
+async function padFingerprint(u8){ const h=await crypto.subtle.digest('SHA-256',u8); return b64e(new Uint8Array(h).slice(0,6)); }
+
+function setRole(r){ ROLE=r; $('rA').classList.toggle('on',r==='A'); $('rB').classList.toggle('on',r==='B'); $('roleLbl').textContent=r; refresh(); }
+function setDisguise(d){ DISG=d; $('dWord').classList.toggle('on',d==='word'); $('dB64').classList.toggle('on',d==='b64'); }
+function refresh(){
+  if(!PAD){ $('budget').textContent='—'; return; }
+  const l=ledger(); const ptr=l['send_'+ROLE] ?? halfBase(ROLE);
+  const left=halfEnd(ROLE)-ptr;
+  $('budget').textContent = left+' B ('+Math.max(0,Math.floor(left/ (MACLEN+40)))+' msgs)';
+  $('padid').textContent=PADID;
+}
+
+// ───────────────────────── generate / import / vault
+async function doGen(){
+  const n=+$('padsize').value; PAD=new Uint8Array(n); crypto.getRandomValues(PAD);
+  PADID=await padFingerprint(PAD); saveLedger({ send_A:0, send_B:(n>>1), seen:[] });
+  $('padout').value=b64e(PAD); log('generated '+n+'-byte pad, id '+PADID+'  (A/B split at '+(n>>1)+')'); refresh();
+}
+async function doImport(){
+  try{ PAD=b64d($('padin').value); PADID=await padFingerprint(PAD);
+    if(!localStorage.getItem(ledKey())) saveLedger({ send_A:0, send_B:(PAD.length>>1), seen:[] });
+    log('loaded pad id '+PADID+' ('+PAD.length+' B)'); refresh();
+  }catch(e){ log('import failed: '+e.message); }
+}
+async function deriveKey(pass,salt){ const b=await crypto.subtle.importKey('raw',te.encode(pass),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},b,{name:'AES-GCM',length:256},false,['encrypt','decrypt']); }
+async function doLock(){
+  if(!PAD) return log('no pad to lock'); const pass=$('pass').value; if(!pass) return log('enter a passphrase');
+  const salt=crypto.getRandomValues(new Uint8Array(16)), iv=crypto.getRandomValues(new Uint8Array(12));
+  const k=await deriveKey(pass,salt); const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},k,PAD));
+  localStorage.setItem('padlock_vault', b64e(cat(salt,iv,ct))); $('lockstate').textContent='locked (vault saved)';
+  log('pad sealed in passphrase vault (prototype: PBKDF2+AES-GCM). native = StrongBox-bound.');
+}
+
+// ───────────────────────── encrypt / decrypt  (envelope: role|offset|len|cipher|tag)
+function doEncrypt(){
+  if(!PAD) return log('generate or load a pad first');
+  const pt=te.encode($('plain').value); const l=ledger(); let ptr=l['send_'+ROLE] ?? halfBase(ROLE);
+  const need=pt.length+MACLEN;
+  if(ptr+need>halfEnd(ROLE)) return log('pad exhausted for role '+ROLE+' — re-exchange a fresh pad');
+  const enc=PAD.subarray(ptr,ptr+pt.length); const mackey=PAD.subarray(ptr+pt.length,ptr+pt.length+MACLEN);
+  const cipher=new Uint8Array(pt.length); for(let i=0;i<pt.length;i++) cipher[i]=pt[i]^enc[i];
+  const header=cat(new Uint8Array([ROLE.charCodeAt(0)]),u32(ptr),u16(pt.length));
+  const tag=poly1305(cat(header,cipher),mackey);
+  const env=cat(header,cipher,tag);
+  // BURN: advance send pointer (never reuse). Pointer advances at encrypt time, so one message = one
+  // consumption regardless of how many channels you then send it over → no collision.
+  l['send_'+ROLE]=ptr+need; saveLedger(l);
+  $('cipherout').textContent = DISG==='word' ? wordEnc(env) : b64e(env);
+  log('encrypted '+pt.length+' B at offset '+ptr+' (role '+ROLE+'); burned '+need+' B'); refresh();
+}
+function doDecrypt(){
+  if(!PAD) return log('load the shared pad first');
+  let env; try{ const t=$('recvin').value.trim(); env = /[^A-Za-z0-9+/=\s]/.test(t) ? wordDec(t) : b64d(t); }
+  catch(e){ return macFail('could not parse: '+e.message); }
+  try{
+    const role=String.fromCharCode(env[0]); const off=rd32(env,1); const len=rd16(env,5);
+    const cipher=env.subarray(7,7+len); const tag=env.subarray(7+len,7+len+MACLEN);
+    const mackey=PAD.subarray(off+len,off+len+MACLEN);
+    const header=env.subarray(0,7);
+    const good=ctEq(poly1305(cat(header,cipher),mackey), tag);
+    if(!good) return macFail('MAC FAILED — message was tampered or wrong pad');
+    // replay guard
+    const l=ledger(); l.seen=l.seen||[]; if(l.seen.includes(off)) log('⚠ replay: offset '+off+' already seen'); else { l.seen.push(off); saveLedger(l); }
+    const enc=PAD.subarray(off,off+len); const pt=new Uint8Array(len); for(let i=0;i<len;i++) pt[i]=cipher[i]^enc[i];
+    $('plainout').textContent=td.decode(pt); $('macbadge').innerHTML='<span class="badge ok">✓ authentic</span>';
+    log('decrypted '+len+' B from offset '+off+' (sender '+role+') — MAC ok');
+  }catch(e){ macFail('decrypt error: '+e.message); }
+}
+function macFail(m){ $('macbadge').innerHTML='<span class="badge bad">✗ rejected</span>'; $('plainout').textContent=''; log(m); }
+
+// ───────────────────────── misc UI
+function copy(id){ const el=$(id); const t=el.value!==undefined?el.value:el.textContent; navigator.clipboard?.writeText(t); log('copied'); }
+function shareOut(){ const t=$('cipherout').textContent; if(navigator.share) navigator.share({text:t}).catch(()=>{}); else { navigator.clipboard?.writeText(t); log('no share sheet — copied instead'); } }
+log('prototype ready — generate a pad, compose, encrypt, then paste the output into Receive to prove the round-trip.');
