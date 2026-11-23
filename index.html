@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#0f1420">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Padlock</title>
 <style>
   :root{ --bg:#0f1420; --panel:#171e2e; --line:#273349; --ink:#e7ecf5; --dim:#8b97ad; --gold:#d9a441; --green:#39b37a; --red:#e2574c; --blue:#4f7fd1; }
@@ -223,3 +225,7 @@ function macFail(m){ $('macbadge').innerHTML='<span class="badge bad">✗ reject
 function copy(id){ const el=$(id); const t=el.value!==undefined?el.value:el.textContent; navigator.clipboard?.writeText(t); log('copied'); }
 function shareOut(){ const t=$('cipherout').textContent; if(navigator.share) navigator.share({text:t}).catch(()=>{}); else { navigator.clipboard?.writeText(t); log('no share sheet — copied instead'); } }
 log('prototype ready — generate a pad, compose, encrypt, then paste the output into Receive to prove the round-trip.');
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body>
+</html>
