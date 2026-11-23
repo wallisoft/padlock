@@ -10,6 +10,8 @@ segment is burnt, the ciphertext that's left is pure noise with no key in the un
 Pads are generated locally from true randomness, shared air-gapped (never over a network), consumed once, and
 burnt as they're used. No cloud, no servers, no accounts, no computational assumptions.
 
+**Try it:** **[padlock.eur.bz](https://padlock.eur.bz)** — or download the single file there and run it offline.
+
 > **Status: working prototype.** `index.html` proves the core — a real Poly1305 one-time MAC, the A/B pad split,
 > word-salad encoding, the burn-ledger, and a passphrase vault. See **[SPEC.md](SPEC.md)** for the full design:
 > air-gapped pad exchange ([AirGap](https://github.com/wallisoft/airgap)'s QR / an SD card), the bind-both
