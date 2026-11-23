@@ -37,4 +37,4 @@ nobody else offers this.
 Dual-licensed: free software under **GPL-3.0** (see [LICENSE](LICENSE)); a **commercial licence** is available
 for closed / proprietary use (see [LICENSE-COMMERCIAL.md](LICENSE-COMMERCIAL.md)). Contact hello@tiny-web.uk.
 
-Made by [Wallisoft](https://github.com/wallisoft) — Eastbourne.
+From the makers of **[Visualised](https://visualised.io)** — Wallisoft, Eastbourne.
